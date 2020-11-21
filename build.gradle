@@ -27,6 +27,23 @@ release {
 }
 
 allprojects {
+//  repositories {
+//    maven { url'http://maven.aliyun.com/nexus/content/repositories/google' }
+//
+//    maven { url'http://maven.aliyun.com/nexus/content/groups/public/' }
+//
+//    maven { url'http://maven.aliyun.com/nexus/content/repositories/jcenter'}
+//  }
+//
+//  buildscript {
+//    repositories {
+//      maven { url'http://maven.aliyun.com/nexus/content/repositories/google' }
+//
+//      maven { url'http://maven.aliyun.com/nexus/content/groups/public/' }
+//
+//      maven { url'http://maven.aliyun.com/nexus/content/repositories/jcenter'}
+//    }
+//  }
   ext.isCI = System.getenv("CI") != null
   if (isCI) {
     buildDir = "$rootDir/workspace/${projectDir.path.replace(rootDir.path, '')}/build/"
@@ -37,9 +54,14 @@ allprojects {
 }
 
 repositories {
-  mavenLocal()
-  mavenCentral()
-  jcenter()
+  maven { url'http://maven.aliyun.com/nexus/content/repositories/google' }
+
+  maven { url'http://maven.aliyun.com/nexus/content/groups/public/' }
+
+  maven { url'http://maven.aliyun.com/nexus/content/repositories/jcenter'}
+//  mavenLocal()
+//  mavenCentral()
+//  jcenter()
 }
 
 description = 'OpenTelemetry instrumentations for Java'

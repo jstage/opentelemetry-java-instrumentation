@@ -8,6 +8,7 @@ minimumBranchCoverage = 0.0
 minimumInstructionCoverage = 0.0
 
 dependencies {
+  compile 'com.orbitz.consul:consul-client:1.4.0'
   api deps.opentelemetryApi
   compileOnly deps.opentelemetrySdk
   implementation deps.slf4j

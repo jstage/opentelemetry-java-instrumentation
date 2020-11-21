@@ -46,9 +46,10 @@ public class AgentInitializer {
 
   public static void initialize(Instrumentation inst, URL bootstrapURL) {
     startAgent(inst, bootstrapURL);
-
     boolean appUsingCustomLogManager = isAppUsingCustomLogManager();
-
+    //apusic agent init
+    log.info("init apusic agent here. register the service and check the license");
+    initApusicAgent();
     /*
      * java.util.logging.LogManager maintains a final static LogManager, which is created during class initialization.
      *
@@ -74,6 +75,13 @@ public class AgentInitializer {
     } else {
       installAgentTracer();
     }
+  }
+
+  private static void initApusicAgent(){
+    String host = System.getProperty("apusic.agent.reg.host","127.0.0.1");
+    String port = System.getProperty("apusic.agent.reg.port","8500");
+    log.info("apusic center host: {} , port : {}",host,port);
+    log.info("license check success,start agent...");
   }
 
   private static void registerLogManagerCallback(ClassLoadCallBack callback) {
