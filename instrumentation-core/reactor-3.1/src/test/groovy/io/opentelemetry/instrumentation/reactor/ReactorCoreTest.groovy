@@ -7,11 +7,11 @@ package io.opentelemetry.instrumentation.reactor
 
 import static io.opentelemetry.instrumentation.test.utils.TraceUtils.basicSpan
 
-import io.opentelemetry.OpenTelemetry
+import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.test.InstrumentationTestRunner
 import io.opentelemetry.instrumentation.test.utils.TraceUtils
-import io.opentelemetry.trace.Tracer
+import io.opentelemetry.api.trace.Tracer
 import java.time.Duration
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
@@ -24,7 +24,7 @@ class ReactorCoreTest extends InstrumentationTestRunner {
 
   public static final String EXCEPTION_MESSAGE = "test exception"
 
-  private static final Tracer TEST_TRACER =
+  private static final Tracer testTracer =
     OpenTelemetry.getGlobalTracer("io.opentelemetry.auto.reactor")
 
   def setupSpec() {
@@ -321,12 +321,12 @@ class ReactorCoreTest extends InstrumentationTestRunner {
   }
 
   static addOneFunc(int i) {
-    TEST_TRACER.spanBuilder("add one").startSpan().end()
+    testTracer.spanBuilder("add one").startSpan().end()
     return i + 1
   }
 
   static addTwoFunc(int i) {
-    TEST_TRACER.spanBuilder("add two").startSpan().end()
+    testTracer.spanBuilder("add two").startSpan().end()
     return i + 2
   }
 }

@@ -5,25 +5,19 @@
 
 package io.opentelemetry.javaagent.instrumentation.opentelemetryapi.trace;
 
-import application.io.opentelemetry.context.Context;
-import application.io.opentelemetry.trace.Span;
-import application.io.opentelemetry.trace.Tracer;
-import io.opentelemetry.javaagent.instrumentation.api.ContextStore;
+import application.io.opentelemetry.api.trace.Span;
+import application.io.opentelemetry.api.trace.Tracer;
 
 class ApplicationTracer implements Tracer {
 
-  private final io.opentelemetry.trace.Tracer agentTracer;
-  private final ContextStore<Context, io.opentelemetry.context.Context> contextStore;
+  private final io.opentelemetry.api.trace.Tracer agentTracer;
 
-  ApplicationTracer(
-      io.opentelemetry.trace.Tracer agentTracer,
-      ContextStore<Context, io.opentelemetry.context.Context> contextStore) {
+  ApplicationTracer(io.opentelemetry.api.trace.Tracer agentTracer) {
     this.agentTracer = agentTracer;
-    this.contextStore = contextStore;
   }
 
   @Override
   public Span.Builder spanBuilder(String spanName) {
-    return new ApplicationSpan.Builder(agentTracer.spanBuilder(spanName), contextStore);
+    return new ApplicationSpan.Builder(agentTracer.spanBuilder(spanName));
   }
 }

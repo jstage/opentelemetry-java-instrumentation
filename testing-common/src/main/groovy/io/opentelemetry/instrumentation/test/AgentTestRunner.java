@@ -14,18 +14,18 @@ import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import groovy.transform.stc.ClosureParams;
 import groovy.transform.stc.SimpleType;
-import io.opentelemetry.OpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.propagation.HttpTraceContext;
 import io.opentelemetry.context.propagation.DefaultContextPropagators;
 import io.opentelemetry.instrumentation.test.asserts.InMemoryExporterAssert;
 import io.opentelemetry.instrumentation.test.utils.ConfigUtils;
 import io.opentelemetry.javaagent.tooling.AgentInstaller;
-import io.opentelemetry.javaagent.tooling.Instrumenter;
+import io.opentelemetry.javaagent.tooling.InstrumentationModule;
 import io.opentelemetry.javaagent.tooling.matcher.AdditionalLibraryIgnoresMatcher;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.trace.data.SpanData;
-import io.opentelemetry.trace.Span;
-import io.opentelemetry.trace.Tracer;
-import io.opentelemetry.trace.propagation.HttpTraceContext;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -55,8 +55,8 @@ import spock.lang.Specification;
  * This will cause the following to occur before test startup:
  *
  * <ul>
- *   <li>All {@link Instrumenter}s on the test classpath will be applied. Matching preloaded classes
- *       will be retransformed.
+ *   <li>All {@link InstrumentationModule}s on the test classpath will be applied. Matching
+ *       preloaded classes will be retransformed.
  *   <li>{@link AgentTestRunner#TEST_WRITER} will be registered with the global tracer and available
  *       in an initialized state.
  * </ul>
@@ -114,7 +114,7 @@ public abstract class AgentTestRunner extends Specification {
               .addTextMapPropagator(HttpTraceContext.getInstance())
               .build());
     }
-    OpenTelemetrySdk.getTracerManagement().addSpanProcessor(TEST_WRITER);
+    OpenTelemetrySdk.getGlobalTracerManagement().addSpanProcessor(TEST_WRITER);
     TEST_TRACER = OpenTelemetry.getGlobalTracer("io.opentelemetry.auto");
   }
 

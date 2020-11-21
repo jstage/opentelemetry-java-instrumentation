@@ -12,13 +12,13 @@ import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
-import io.opentelemetry.OpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.instrumentation.api.config.Config;
 import io.opentelemetry.instrumentation.api.internal.BootstrapPackagePrefixesHolder;
 import io.opentelemetry.javaagent.instrumentation.api.OpenTelemetrySdkAccess;
-import io.opentelemetry.javaagent.instrumentation.api.OpenTelemetrySdkAccess.ForceFlusher;
 import io.opentelemetry.javaagent.instrumentation.api.SafeServiceLoader;
 import io.opentelemetry.javaagent.spi.BootstrapPackagesProvider;
+import io.opentelemetry.javaagent.spi.ByteBuddyAgentCustomizer;
 import io.opentelemetry.javaagent.tooling.config.ConfigInitializer;
 import io.opentelemetry.javaagent.tooling.context.FieldBackedProvider;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
@@ -30,7 +30,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.ServiceLoader;
+import java.util.stream.Collectors;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.description.type.TypeDefinition;
@@ -64,14 +65,15 @@ public class AgentInstaller {
 
   public static void installBytebuddyAgent(Instrumentation inst) {
     if (Config.get().getBooleanProperty(TRACE_ENABLED_CONFIG, true)) {
-      installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
+      installBytebuddyAgent(inst, false);
     } else {
       log.debug("Tracing is disabled, not installing instrumentations.");
     }
   }
 
   /**
-   * Install the core bytebuddy agent along with all implementations of {@link Instrumenter}.
+   * Install the core bytebuddy agent along with all implementations of {@link
+   * InstrumentationModule}.
    *
    * @param inst Java Instrumentation used to install bytebuddy
    * @return the agent's class transformer
@@ -101,12 +103,8 @@ public class AgentInstaller {
     }
 
     OpenTelemetrySdkAccess.internalSetForceFlush(
-        new ForceFlusher() {
-          @Override
-          public void run(int timeout, TimeUnit unit) {
-            OpenTelemetrySdk.getTracerManagement().forceFlush().join(timeout, unit);
-          }
-        });
+        (timeout, unit) ->
+            OpenTelemetrySdk.getGlobalTracerManagement().forceFlush().join(timeout, unit));
 
     INSTRUMENTATION = inst;
 
@@ -146,27 +144,45 @@ public class AgentInstaller {
     for (AgentBuilder.Listener listener : listeners) {
       agentBuilder = agentBuilder.with(listener);
     }
-    Iterable<Instrumenter> instrumenters =
-        SafeServiceLoader.load(Instrumenter.class, AgentInstaller.class.getClassLoader());
+
     int numInstrumenters = 0;
-    for (Instrumenter instrumenter : orderInstrumenters(instrumenters)) {
-      log.debug("Loading instrumentation {}", instrumenter.getClass().getName());
+
+    for (InstrumentationModule instrumentationModule : loadInstrumentationModules()) {
+      log.debug("Loading instrumentation {}", instrumentationModule.getClass().getName());
       try {
-        agentBuilder = instrumenter.instrument(agentBuilder);
+        agentBuilder = instrumentationModule.instrument(agentBuilder);
         numInstrumenters++;
       } catch (Exception | LinkageError e) {
-        log.error("Unable to load instrumentation {}", instrumenter.getClass().getName(), e);
+        log.error(
+            "Unable to load instrumentation {}", instrumentationModule.getClass().getName(), e);
       }
     }
+
+    agentBuilder = customizeByteBuddyAgent(agentBuilder);
     log.debug("Installed {} instrumenter(s)", numInstrumenters);
     return agentBuilder.installOn(inst);
   }
 
-  private static Iterable<Instrumenter> orderInstrumenters(Iterable<Instrumenter> instrumenters) {
-    List<Instrumenter> orderedInstrumenters = new ArrayList<>();
-    instrumenters.forEach(orderedInstrumenters::add);
-    Collections.sort(orderedInstrumenters, Comparator.comparingInt(Instrumenter::getOrder));
-    return orderedInstrumenters;
+  private static AgentBuilder customizeByteBuddyAgent(AgentBuilder agentBuilder) {
+    Iterable<ByteBuddyAgentCustomizer> agentCustomizers = loadByteBuddyAgentCustomizers();
+    for (ByteBuddyAgentCustomizer agentCustomizer : agentCustomizers) {
+      log.debug("Applying agent builder customizer {}", agentCustomizer.getClass().getName());
+      agentBuilder = agentCustomizer.customize(agentBuilder);
+    }
+    return agentBuilder;
+  }
+
+  private static Iterable<ByteBuddyAgentCustomizer> loadByteBuddyAgentCustomizers() {
+    return ServiceLoader.load(
+        ByteBuddyAgentCustomizer.class, AgentInstaller.class.getClassLoader());
+  }
+
+  private static List<InstrumentationModule> loadInstrumentationModules() {
+    return SafeServiceLoader.load(
+            InstrumentationModule.class, AgentInstaller.class.getClassLoader())
+        .stream()
+        .sorted(Comparator.comparingInt(InstrumentationModule::getOrder))
+        .collect(Collectors.toList());
   }
 
   private static void addByteBuddyRawSetting() {
@@ -318,11 +334,8 @@ public class AgentInstaller {
    */
   public static void registerClassLoadCallback(String className, Runnable callback) {
     synchronized (CLASS_LOAD_CALLBACKS) {
-      List<Runnable> callbacks = CLASS_LOAD_CALLBACKS.get(className);
-      if (callbacks == null) {
-        callbacks = new ArrayList<>();
-        CLASS_LOAD_CALLBACKS.put(className, callbacks);
-      }
+      List<Runnable> callbacks =
+          CLASS_LOAD_CALLBACKS.computeIfAbsent(className, k -> new ArrayList<>());
       callbacks.add(callback);
     }
   }

@@ -8,15 +8,19 @@ package io.opentelemetry.javaagent.instrumentation.cassandra.v3_0;
 import com.datastax.driver.core.ExecutionInfo;
 import com.datastax.driver.core.Host;
 import com.datastax.driver.core.Session;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.attributes.SemanticAttributes;
 import io.opentelemetry.instrumentation.api.tracer.DatabaseClientTracer;
 import io.opentelemetry.instrumentation.api.tracer.utils.NetPeerUtils;
 import io.opentelemetry.javaagent.instrumentation.api.db.DbSystem;
-import io.opentelemetry.trace.Span;
-import io.opentelemetry.trace.attributes.SemanticAttributes;
 import java.net.InetSocketAddress;
 
 public class CassandraDatabaseClientTracer extends DatabaseClientTracer<Session, String> {
-  public static final CassandraDatabaseClientTracer TRACER = new CassandraDatabaseClientTracer();
+  private static final CassandraDatabaseClientTracer TRACER = new CassandraDatabaseClientTracer();
+
+  public static CassandraDatabaseClientTracer tracer() {
+    return TRACER;
+  }
 
   @Override
   protected String getInstrumentationName() {
@@ -40,7 +44,7 @@ public class CassandraDatabaseClientTracer extends DatabaseClientTracer<Session,
 
   @Override
   protected Span onConnection(Span span, Session session) {
-    span.setAttribute(SemanticAttributes.CASSANDRA_KEYSPACE, session.getLoggedKeyspace());
+    span.setAttribute(SemanticAttributes.DB_CASSANDRA_KEYSPACE, session.getLoggedKeyspace());
     return super.onConnection(span, session);
   }
 

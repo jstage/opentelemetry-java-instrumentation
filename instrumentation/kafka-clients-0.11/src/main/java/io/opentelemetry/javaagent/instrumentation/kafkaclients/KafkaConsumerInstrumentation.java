@@ -5,7 +5,7 @@
 
 package io.opentelemetry.javaagent.instrumentation.kafkaclients;
 
-import static io.opentelemetry.javaagent.instrumentation.kafkaclients.KafkaConsumerTracer.TRACER;
+import static io.opentelemetry.javaagent.instrumentation.kafkaclients.KafkaConsumerTracer.tracer;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -13,8 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
-import io.opentelemetry.javaagent.tooling.Instrumenter;
+import io.opentelemetry.javaagent.tooling.TypeInstrumentation;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -25,28 +24,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-@AutoService(Instrumenter.class)
-public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
-
-  public KafkaConsumerInstrumentation() {
-    super("kafka");
-  }
+final class KafkaConsumerInstrumentation implements TypeInstrumentation {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return named("org.apache.kafka.clients.consumer.ConsumerRecords");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".KafkaClientConfiguration",
-      packageName + ".KafkaConsumerTracer",
-      packageName + ".TextMapExtractAdapter",
-      packageName + ".TracingIterable",
-      packageName + ".TracingIterator",
-      packageName + ".TracingList"
-    };
   }
 
   @Override
@@ -82,7 +64,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
     public static void wrap(
         @Advice.Return(readOnly = false) Iterable<ConsumerRecord<?, ?>> iterable) {
       if (iterable != null) {
-        iterable = new TracingIterable(iterable, TRACER);
+        iterable = new TracingIterable(iterable, tracer());
       }
     }
   }
@@ -92,7 +74,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void wrap(@Advice.Return(readOnly = false) List<ConsumerRecord<?, ?>> iterable) {
       if (iterable != null) {
-        iterable = new TracingList(iterable, TRACER);
+        iterable = new TracingList(iterable, tracer());
       }
     }
   }
@@ -103,7 +85,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
     public static void wrap(
         @Advice.Return(readOnly = false) Iterator<ConsumerRecord<?, ?>> iterator) {
       if (iterator != null) {
-        iterator = new TracingIterator(iterator, TRACER);
+        iterator = new TracingIterator(iterator, tracer());
       }
     }
   }

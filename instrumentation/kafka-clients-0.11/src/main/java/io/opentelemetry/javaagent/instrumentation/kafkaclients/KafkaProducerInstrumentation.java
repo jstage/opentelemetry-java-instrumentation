@@ -5,7 +5,7 @@
 
 package io.opentelemetry.javaagent.instrumentation.kafkaclients;
 
-import static io.opentelemetry.javaagent.instrumentation.kafkaclients.KafkaProducerTracer.TRACER;
+import static io.opentelemetry.javaagent.instrumentation.kafkaclients.KafkaProducerTracer.tracer;
 import static io.opentelemetry.javaagent.instrumentation.kafkaclients.TextMapInjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -13,12 +13,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
+import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.javaagent.instrumentation.api.Java8BytecodeBridge;
-import io.opentelemetry.javaagent.tooling.Instrumenter;
-import io.opentelemetry.trace.Span;
+import io.opentelemetry.javaagent.tooling.TypeInstrumentation;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -27,28 +26,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
 
-@AutoService(Instrumenter.class)
-public final class KafkaProducerInstrumentation extends Instrumenter.Default {
-
-  public KafkaProducerInstrumentation() {
-    super("kafka");
-  }
+final class KafkaProducerInstrumentation implements TypeInstrumentation {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return named("org.apache.kafka.clients.producer.KafkaProducer");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".KafkaClientConfiguration",
-      packageName + ".KafkaProducerTracer",
-      packageName + ".TextMapInjectAdapter",
-      KafkaProducerInstrumentation.class.getName() + "$ProducerCallback"
-    };
   }
 
   @Override
@@ -67,19 +50,19 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.FieldValue("apiVersions") ApiVersions apiVersions,
-        @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
+        @Advice.Argument(value = 0, readOnly = false) ProducerRecord<?, ?> record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback,
         @Advice.Local("otelSpan") Span span,
         @Advice.Local("otelScope") Scope scope) {
 
       Context parent = Java8BytecodeBridge.currentContext();
 
-      span = TRACER.startProducerSpan(record);
+      span = tracer().startProducerSpan(record);
       Context newContext = parent.with(span);
 
       callback = new ProducerCallback(callback, parent, span);
 
-      if (TRACER.shouldPropagate(apiVersions)) {
+      if (tracer().shouldPropagate(apiVersions)) {
         try {
           Java8BytecodeBridge.getGlobalPropagators()
               .getTextMapPropagator()
@@ -113,40 +96,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
       scope.close();
 
       if (throwable != null) {
-        TRACER.endExceptionally(span, throwable);
+        tracer().endExceptionally(span, throwable);
       }
       // span finished by ProducerCallback
-    }
-  }
-
-  public static class ProducerCallback implements Callback {
-    private final Callback callback;
-    private final Context parent;
-    private final Span span;
-
-    public ProducerCallback(Callback callback, Context parent, Span span) {
-      this.callback = callback;
-      this.parent = parent;
-      this.span = span;
-    }
-
-    @Override
-    public void onCompletion(RecordMetadata metadata, Exception exception) {
-      if (exception != null) {
-        TRACER.endExceptionally(span, exception);
-      } else {
-        TRACER.end(span);
-      }
-
-      if (callback != null) {
-        if (parent != null) {
-          try (Scope ignored = parent.makeCurrent()) {
-            callback.onCompletion(metadata, exception);
-          }
-        } else {
-          callback.onCompletion(metadata, exception);
-        }
-      }
     }
   }
 }

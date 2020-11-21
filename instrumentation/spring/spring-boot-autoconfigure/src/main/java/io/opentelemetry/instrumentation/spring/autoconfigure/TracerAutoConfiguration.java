@@ -5,15 +5,15 @@
 
 package io.opentelemetry.instrumentation.spring.autoconfigure;
 
-import io.opentelemetry.OpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.trace.MultiSpanProcessor;
-import io.opentelemetry.sdk.trace.Samplers;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.config.TraceConfig;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
-import io.opentelemetry.trace.Tracer;
+import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.ObjectProvider;
@@ -23,7 +23,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Create {@link io.opentelemetry.trace.Tracer} bean if bean is missing.
+ * Create {@link io.opentelemetry.api.trace.Tracer} bean if bean is missing.
  *
  * <p>Adds span exporter beans to the active tracer provider.
  *
@@ -57,16 +57,16 @@ public class TracerAutoConfiguration {
             .map(spanExporter -> SimpleSpanProcessor.builder(spanExporter).build())
             .collect(Collectors.toList());
 
-    OpenTelemetrySdk.getTracerManagement()
+    OpenTelemetrySdk.getGlobalTracerManagement()
         .addSpanProcessor(MultiSpanProcessor.create(spanProcessors));
   }
 
   private void setSampler(TracerProperties tracerProperties) {
     TraceConfig updatedTraceConfig =
-        OpenTelemetrySdk.getTracerManagement().getActiveTraceConfig().toBuilder()
-            .setSampler(Samplers.traceIdRatioBased(tracerProperties.getSamplerProbability()))
+        OpenTelemetrySdk.getGlobalTracerManagement().getActiveTraceConfig().toBuilder()
+            .setSampler(Sampler.traceIdRatioBased(tracerProperties.getSamplerProbability()))
             .build();
 
-    OpenTelemetrySdk.getTracerManagement().updateActiveTraceConfig(updatedTraceConfig);
+    OpenTelemetrySdk.getGlobalTracerManagement().updateActiveTraceConfig(updatedTraceConfig);
   }
 }

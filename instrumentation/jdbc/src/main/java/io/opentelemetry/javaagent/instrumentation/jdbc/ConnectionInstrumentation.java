@@ -14,8 +14,8 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
-import io.opentelemetry.javaagent.tooling.Instrumenter;
+import io.opentelemetry.javaagent.instrumentation.api.db.SqlStatementInfo;
+import io.opentelemetry.javaagent.tooling.TypeInstrumentation;
 import java.sql.PreparedStatement;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -23,12 +23,7 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
-public final class ConnectionInstrumentation extends Instrumenter.Default {
-
-  public ConnectionInstrumentation() {
-    super("jdbc");
-  }
+final class ConnectionInstrumentation implements TypeInstrumentation {
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
@@ -38,13 +33,6 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("java.sql.Connection"));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCMaps", packageName + ".JDBCUtils",
-    };
   }
 
   @Override
@@ -61,7 +49,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addDBInfo(
         @Advice.Argument(0) String sql, @Advice.Return PreparedStatement statement) {
-      String normalizedSql = JDBCUtils.normalizeSql(sql);
+      SqlStatementInfo normalizedSql = JDBCUtils.normalizeAndExtractInfo(sql);
       if (normalizedSql != null) {
         JDBCMaps.preparedStatements.put(statement, normalizedSql);
       }

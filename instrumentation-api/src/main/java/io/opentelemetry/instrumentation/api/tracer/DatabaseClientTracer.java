@@ -5,22 +5,22 @@
 
 package io.opentelemetry.instrumentation.api.tracer;
 
-import static io.opentelemetry.trace.Span.Kind.CLIENT;
+import static io.opentelemetry.api.trace.Span.Kind.CLIENT;
 
-import io.opentelemetry.OpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.attributes.SemanticAttributes;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.instrumentation.api.tracer.utils.NetPeerUtils;
-import io.opentelemetry.trace.Span;
-import io.opentelemetry.trace.StatusCode;
-import io.opentelemetry.trace.Tracer;
-import io.opentelemetry.trace.attributes.SemanticAttributes;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutionException;
 
 public abstract class DatabaseClientTracer<CONNECTION, QUERY> extends BaseTracer {
 
-  private static final String DB_QUERY = "DB Query";
+  protected static final String DB_QUERY = "DB Query";
 
   protected final Tracer tracer;
 
@@ -33,7 +33,7 @@ public abstract class DatabaseClientTracer<CONNECTION, QUERY> extends BaseTracer
 
     Span span =
         tracer
-            .spanBuilder(spanName(normalizedQuery, connection))
+            .spanBuilder(spanName(connection, query, normalizedQuery))
             .setSpanKind(CLIENT)
             .setAttribute(SemanticAttributes.DB_SYSTEM, dbSystem(connection))
             .startSpan();
@@ -124,9 +124,9 @@ public abstract class DatabaseClientTracer<CONNECTION, QUERY> extends BaseTracer
 
   protected abstract InetSocketAddress peerAddress(CONNECTION connection);
 
-  private String spanName(String query, CONNECTION connection) {
-    if (query != null) {
-      return query;
+  protected String spanName(CONNECTION connection, QUERY query, String normalizedQuery) {
+    if (normalizedQuery != null) {
+      return normalizedQuery;
     }
 
     String result = null;

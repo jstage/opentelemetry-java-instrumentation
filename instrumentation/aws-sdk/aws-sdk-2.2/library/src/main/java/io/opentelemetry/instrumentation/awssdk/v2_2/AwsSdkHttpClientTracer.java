@@ -5,13 +5,13 @@
 
 package io.opentelemetry.instrumentation.awssdk.v2_2;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Span.Kind;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.attributes.SemanticAttributes;
 import io.opentelemetry.context.propagation.TextMapPropagator.Setter;
 import io.opentelemetry.instrumentation.api.tracer.BaseTracer;
 import io.opentelemetry.instrumentation.api.tracer.HttpClientTracer;
-import io.opentelemetry.trace.Span;
-import io.opentelemetry.trace.Span.Kind;
-import io.opentelemetry.trace.Tracer;
-import io.opentelemetry.trace.attributes.SemanticAttributes;
 import java.net.URI;
 import software.amazon.awssdk.http.SdkHttpHeaders;
 import software.amazon.awssdk.http.SdkHttpRequest;
@@ -20,7 +20,11 @@ import software.amazon.awssdk.http.SdkHttpResponse;
 final class AwsSdkHttpClientTracer
     extends HttpClientTracer<SdkHttpRequest, SdkHttpRequest, SdkHttpResponse> {
 
-  static final AwsSdkHttpClientTracer TRACER = new AwsSdkHttpClientTracer();
+  private static final AwsSdkHttpClientTracer TRACER = new AwsSdkHttpClientTracer();
+
+  static AwsSdkHttpClientTracer tracer() {
+    return TRACER;
+  }
 
   // Certain headers in the request like User-Agent are only available after execution.
   Span afterExecution(Span span, SdkHttpRequest request) {

@@ -6,16 +6,15 @@
 package io.opentelemetry.javaagent.tooling;
 
 import com.google.common.collect.ImmutableMap;
-import io.opentelemetry.OpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.propagation.HttpTraceContext;
 import io.opentelemetry.context.propagation.DefaultContextPropagators;
 import io.opentelemetry.context.propagation.TextMapPropagator;
-import io.opentelemetry.extensions.trace.propagation.AwsXRayPropagator;
-import io.opentelemetry.extensions.trace.propagation.B3Propagator;
-import io.opentelemetry.extensions.trace.propagation.JaegerPropagator;
-import io.opentelemetry.extensions.trace.propagation.OtTracerPropagator;
-import io.opentelemetry.extensions.trace.propagation.TraceMultiPropagator;
-import io.opentelemetry.extensions.trace.propagation.TraceMultiPropagator.Builder;
-import io.opentelemetry.trace.propagation.HttpTraceContext;
+import io.opentelemetry.extension.trace.propagation.AwsXRayPropagator;
+import io.opentelemetry.extension.trace.propagation.B3Propagator;
+import io.opentelemetry.extension.trace.propagation.JaegerPropagator;
+import io.opentelemetry.extension.trace.propagation.OtTracerPropagator;
+import io.opentelemetry.extension.trace.propagation.TraceMultiPropagator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +67,7 @@ public class PropagatorsInitializer {
       }
     }
     if (textPropagators.size() > 1) {
-      Builder traceMultiPropagatorBuilder = TraceMultiPropagator.builder();
+      TraceMultiPropagator.Builder traceMultiPropagatorBuilder = TraceMultiPropagator.builder();
       for (TextMapPropagator textPropagator : textPropagators) {
         traceMultiPropagatorBuilder.addPropagator(textPropagator);
       }

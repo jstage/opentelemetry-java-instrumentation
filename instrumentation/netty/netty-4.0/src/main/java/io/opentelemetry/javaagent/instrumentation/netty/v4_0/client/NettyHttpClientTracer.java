@@ -11,18 +11,22 @@ import static io.opentelemetry.javaagent.instrumentation.netty.v4_0.client.Netty
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapPropagator.Setter;
 import io.opentelemetry.instrumentation.api.tracer.HttpClientTracer;
-import io.opentelemetry.trace.Span;
 import java.net.URI;
 import java.net.URISyntaxException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class NettyHttpClientTracer
     extends HttpClientTracer<HttpRequest, HttpHeaders, HttpResponse> {
-  public static final NettyHttpClientTracer TRACER = new NettyHttpClientTracer();
+  private static final NettyHttpClientTracer TRACER = new NettyHttpClientTracer();
+
+  public static NettyHttpClientTracer tracer() {
+    return TRACER;
+  }
 
   @Override
   public Scope startScope(Span span, HttpHeaders headers) {

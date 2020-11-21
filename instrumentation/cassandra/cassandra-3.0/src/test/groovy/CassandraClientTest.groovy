@@ -5,14 +5,14 @@
 
 import static io.opentelemetry.instrumentation.test.utils.TraceUtils.basicSpan
 import static io.opentelemetry.instrumentation.test.utils.TraceUtils.runUnderTrace
-import static io.opentelemetry.trace.Span.Kind.CLIENT
+import static io.opentelemetry.api.trace.Span.Kind.CLIENT
 
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.Session
 import io.opentelemetry.instrumentation.test.AgentTestRunner
 import io.opentelemetry.instrumentation.test.asserts.TraceAssert
 import io.opentelemetry.sdk.trace.data.SpanData
-import io.opentelemetry.trace.attributes.SemanticAttributes
+import io.opentelemetry.api.trace.attributes.SemanticAttributes
 import java.time.Duration
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -141,7 +141,7 @@ class CassandraClientTest extends AgentTestRunner {
         "$SemanticAttributes.DB_SYSTEM.key" "cassandra"
         "$SemanticAttributes.DB_NAME.key" keyspace
         "$SemanticAttributes.DB_STATEMENT.key" statement
-        "$SemanticAttributes.CASSANDRA_KEYSPACE.key" keyspace
+        "$SemanticAttributes.DB_CASSANDRA_KEYSPACE.key" keyspace
       }
     }
   }

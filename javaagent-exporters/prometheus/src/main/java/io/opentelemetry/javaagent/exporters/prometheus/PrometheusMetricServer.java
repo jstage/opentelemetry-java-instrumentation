@@ -6,12 +6,14 @@
 package io.opentelemetry.javaagent.exporters.prometheus;
 
 import com.google.auto.service.AutoService;
-import io.opentelemetry.exporters.prometheus.PrometheusCollector;
+import io.opentelemetry.exporter.prometheus.PrometheusCollector;
 import io.opentelemetry.javaagent.spi.exporter.MetricServer;
 import io.opentelemetry.sdk.metrics.export.MetricProducer;
 import io.prometheus.client.exporter.HTTPServer;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Properties;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,5 +45,10 @@ public class PrometheusMetricServer implements MetricServer {
     } catch (IOException e) {
       log.error("Failed to create Prometheus server", e);
     }
+  }
+
+  @Override
+  public Set<String> getNames() {
+    return Collections.singleton("prometheus");
   }
 }

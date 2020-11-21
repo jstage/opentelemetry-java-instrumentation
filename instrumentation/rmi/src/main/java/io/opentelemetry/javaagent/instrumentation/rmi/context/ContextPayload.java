@@ -5,11 +5,11 @@
 
 package io.opentelemetry.javaagent.instrumentation.rmi.context;
 
-import io.opentelemetry.OpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.TextMapPropagator;
-import io.opentelemetry.trace.Span;
-import io.opentelemetry.trace.Tracer;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
@@ -23,7 +23,11 @@ public class ContextPayload {
 
   private static final Logger log = LoggerFactory.getLogger(ContextPayload.class);
 
-  public static final Tracer TRACER = OpenTelemetry.getGlobalTracer("io.opentelemetry.auto.rmi");
+  private static final Tracer TRACER = OpenTelemetry.getGlobalTracer("io.opentelemetry.auto.rmi");
+
+  public static Tracer tracer() {
+    return TRACER;
+  }
 
   private final Map<String, String> context;
   public static final ExtractAdapter GETTER = new ExtractAdapter();
@@ -66,6 +70,11 @@ public class ContextPayload {
   }
 
   public static class ExtractAdapter implements TextMapPropagator.Getter<ContextPayload> {
+    @Override
+    public Iterable<String> keys(ContextPayload contextPayload) {
+      return contextPayload.getSpanContext().keySet();
+    }
+
     @Override
     public String get(ContextPayload carrier, String key) {
       return carrier.getSpanContext().get(key);

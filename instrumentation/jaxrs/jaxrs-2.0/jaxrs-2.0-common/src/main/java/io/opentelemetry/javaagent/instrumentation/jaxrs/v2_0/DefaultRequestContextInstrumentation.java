@@ -5,12 +5,10 @@
 
 package io.opentelemetry.javaagent.instrumentation.jaxrs.v2_0;
 
-import static io.opentelemetry.javaagent.instrumentation.jaxrs.v2_0.JaxRsAnnotationsTracer.TRACER;
+import static io.opentelemetry.javaagent.instrumentation.jaxrs.v2_0.JaxRsAnnotationsTracer.tracer;
 
-import com.google.auto.service.AutoService;
+import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
-import io.opentelemetry.javaagent.tooling.Instrumenter;
-import io.opentelemetry.trace.Span;
 import java.lang.reflect.Method;
 import javax.ws.rs.container.ContainerRequestContext;
 import net.bytebuddy.asm.Advice;
@@ -25,8 +23,12 @@ import net.bytebuddy.asm.Advice.Local;
  * <p>This default instrumentation uses the class name of the filter to create the span. More
  * specific instrumentations may override this value.
  */
-@AutoService(Instrumenter.class)
-public class DefaultRequestContextInstrumentation extends AbstractRequestContextInstrumentation {
+final class DefaultRequestContextInstrumentation extends AbstractRequestContextInstrumentation {
+  @Override
+  protected String abortAdviceName() {
+    return ContainerRequestContextAdvice.class.getName();
+  }
+
   public static class ContainerRequestContextAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void createGenericSpan(
@@ -44,8 +46,8 @@ public class DefaultRequestContextInstrumentation extends AbstractRequestContext
           // can only be aborted inside the filter method
         }
 
-        span = TRACER.startSpan(filterClass, method);
-        scope = TRACER.startScope(span);
+        span = tracer().startSpan(filterClass, method);
+        scope = tracer().startScope(span);
       }
     }
 
@@ -54,7 +56,7 @@ public class DefaultRequestContextInstrumentation extends AbstractRequestContext
         @Local("otelSpan") Span span,
         @Local("otelScope") Scope scope,
         @Advice.Thrown Throwable throwable) {
-      RequestFilterHelper.closeSpanAndScope(span, scope, throwable);
+      RequestContextHelper.closeSpanAndScope(span, scope, throwable);
     }
   }
 }

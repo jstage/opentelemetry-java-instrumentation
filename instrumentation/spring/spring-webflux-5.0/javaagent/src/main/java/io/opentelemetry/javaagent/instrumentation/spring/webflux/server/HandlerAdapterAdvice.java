@@ -5,12 +5,13 @@
 
 package io.opentelemetry.javaagent.instrumentation.spring.webflux.server;
 
-import static io.opentelemetry.javaagent.instrumentation.spring.webflux.server.SpringWebfluxHttpServerTracer.TRACER;
+import static io.opentelemetry.javaagent.instrumentation.spring.webflux.server.SpringWebfluxHttpServerTracer.tracer;
 
+import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.instrumentation.api.servlet.ServletContextPath;
 import io.opentelemetry.instrumentation.api.tracer.BaseTracer;
 import io.opentelemetry.javaagent.instrumentation.api.SpanWithScope;
-import io.opentelemetry.trace.Span;
 import net.bytebuddy.asm.Advice;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.reactive.HandlerMapping;
@@ -33,7 +34,7 @@ public class HandlerAdapterAdvice {
       if (handler instanceof HandlerMethod) {
         // Special case for requests mapped with annotations
         HandlerMethod handlerMethod = (HandlerMethod) handler;
-        operationName = TRACER.spanNameForMethod(handlerMethod.getMethod());
+        operationName = tracer().spanNameForMethod(handlerMethod.getMethod());
         handlerType = handlerMethod.getMethod().getDeclaringClass().getName();
       } else {
         operationName = AdviceUtils.parseOperationName(handler);
@@ -51,7 +52,8 @@ public class HandlerAdapterAdvice {
       PathPattern bestPattern =
           exchange.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
       if (serverSpan != null && bestPattern != null) {
-        serverSpan.updateName(bestPattern.getPatternString());
+        serverSpan.updateName(
+            ServletContextPath.prepend(Context.current(), bestPattern.toString()));
       }
     }
 

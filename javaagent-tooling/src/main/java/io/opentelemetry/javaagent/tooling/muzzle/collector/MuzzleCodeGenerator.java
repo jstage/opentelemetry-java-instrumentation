@@ -5,17 +5,16 @@
 
 package io.opentelemetry.javaagent.tooling.muzzle.collector;
 
-import io.opentelemetry.javaagent.tooling.Instrumenter;
-import io.opentelemetry.javaagent.tooling.Instrumenter.Default;
+import io.opentelemetry.javaagent.tooling.InstrumentationModule;
 import io.opentelemetry.javaagent.tooling.Utils;
 import io.opentelemetry.javaagent.tooling.muzzle.Reference;
 import io.opentelemetry.javaagent.tooling.muzzle.matcher.ReferenceMatcher;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -33,9 +32,10 @@ import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 
 /**
- * This class generates the actual implementation of the {@link Default#getMuzzleReferenceMatcher()}
- * method. It collects references from all advice classes defined in an instrumentation and writes
- * them as Java bytecode in the generated {@link Default#getMuzzleReferenceMatcher()} method.
+ * This class generates the actual implementation of the {@link
+ * InstrumentationModule#getMuzzleReferenceMatcher()} method. It collects references from all advice
+ * classes defined in an instrumentation and writes them as Java bytecode in the generated {@link
+ * InstrumentationModule#getMuzzleReferenceMatcher()} method.
  *
  * <p>This class is run at compile time by the {@link MuzzleCodeGenerationPlugin} ByteBuddy plugin.
  */
@@ -73,7 +73,7 @@ class MuzzleCodeGenerator implements AsmVisitorWrapper {
     private final boolean frames;
 
     private String instrumentationClassName;
-    private Instrumenter.Default instrumenter;
+    private InstrumentationModule instrumenter;
 
     public GenerateMuzzleReferenceMatcherMethodAndField(ClassVisitor classVisitor, boolean frames) {
       super(Opcodes.ASM7, classVisitor);
@@ -91,7 +91,7 @@ class MuzzleCodeGenerator implements AsmVisitorWrapper {
       this.instrumentationClassName = name;
       try {
         instrumenter =
-            (Instrumenter.Default)
+            (InstrumentationModule)
                 MuzzleCodeGenerator.class
                     .getClassLoader()
                     .loadClass(Utils.getClassName(instrumentationClassName))
@@ -134,7 +134,10 @@ class MuzzleCodeGenerator implements AsmVisitorWrapper {
 
     public Reference[] generateReferences() {
       Map<String, Reference> references = new HashMap<>();
-      Set<String> adviceClassNames = new HashSet<>(instrumenter.transformers().values());
+      Set<String> adviceClassNames =
+          instrumenter.typeInstrumentations().stream()
+              .flatMap(typeInstrumentation -> typeInstrumentation.transformers().values().stream())
+              .collect(Collectors.toSet());
 
       for (String adviceClass : adviceClassNames) {
         for (Map.Entry<String, Reference> entry :

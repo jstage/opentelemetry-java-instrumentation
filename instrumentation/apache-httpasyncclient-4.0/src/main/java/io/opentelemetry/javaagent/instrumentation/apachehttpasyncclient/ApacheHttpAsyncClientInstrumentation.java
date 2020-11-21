@@ -6,7 +6,7 @@
 package io.opentelemetry.javaagent.instrumentation.apachehttpasyncclient;
 
 import static io.opentelemetry.instrumentation.api.tracer.HttpClientTracer.DEFAULT_SPAN_NAME;
-import static io.opentelemetry.javaagent.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientTracer.TRACER;
+import static io.opentelemetry.javaagent.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientTracer.tracer;
 import static io.opentelemetry.javaagent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static io.opentelemetry.javaagent.tooling.bytebuddy.matcher.AgentElementMatchers.implementsInterface;
 import static java.util.Collections.singletonMap;
@@ -15,13 +15,12 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Span.Kind;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.javaagent.instrumentation.api.Java8BytecodeBridge;
-import io.opentelemetry.javaagent.tooling.Instrumenter;
-import io.opentelemetry.trace.Span;
-import io.opentelemetry.trace.Span.Kind;
+import io.opentelemetry.javaagent.tooling.TypeInstrumentation;
 import java.io.IOException;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -39,12 +38,7 @@ import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpCoreContext;
 
-@AutoService(Instrumenter.class)
-public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
-
-  public ApacheHttpAsyncClientInstrumentation() {
-    super("httpasyncclient", "apache-httpasyncclient");
-  }
+final class ApacheHttpAsyncClientInstrumentation implements TypeInstrumentation {
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
@@ -55,16 +49,6 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("org.apache.http.nio.client.HttpAsyncClient"));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HttpHeadersInjectAdapter",
-      getClass().getName() + "$DelegatingRequestProducer",
-      getClass().getName() + "$TraceContinuedFutureCallback",
-      packageName + ".ApacheHttpAsyncClientTracer"
-    };
   }
 
   @Override
@@ -89,11 +73,11 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
         @Advice.Argument(value = 3, readOnly = false) FutureCallback<?> futureCallback) {
 
       Context parentContext = Java8BytecodeBridge.currentContext();
-      Span clientSpan = TRACER.startSpan(DEFAULT_SPAN_NAME, Kind.CLIENT);
+      Span clientSpan = tracer().startSpan(DEFAULT_SPAN_NAME, Kind.CLIENT);
 
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);
       futureCallback =
-          new TraceContinuedFutureCallback(parentContext, clientSpan, context, futureCallback);
+          new TraceContinuedFutureCallback<>(parentContext, clientSpan, context, futureCallback);
 
       return clientSpan;
     }
@@ -102,7 +86,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
     public static void methodExit(
         @Advice.Enter Span span, @Advice.Return Object result, @Advice.Thrown Throwable throwable) {
       if (throwable != null) {
-        TRACER.endExceptionally(span, throwable);
+        tracer().endExceptionally(span, throwable);
       }
     }
   }
@@ -124,11 +108,11 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
     @Override
     public HttpRequest generateRequest() throws IOException, HttpException {
       HttpRequest request = delegate.generateRequest();
-      span.updateName(TRACER.spanNameForRequest(request));
-      TRACER.onRequest(span, request);
+      span.updateName(tracer().spanNameForRequest(request));
+      tracer().onRequest(span, request);
 
       // TODO (trask) expose inject separate from startScope, e.g. for async cases
-      Scope scope = TRACER.startScope(span, request);
+      Scope scope = tracer().startScope(span, request);
       scope.close();
 
       return request;
@@ -182,7 +166,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
 
     @Override
     public void completed(T result) {
-      TRACER.end(clientSpan, getResponse(context));
+      tracer().end(clientSpan, getResponse(context));
 
       if (parentContext == null) {
         completeDelegate(result);
@@ -196,7 +180,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
     @Override
     public void failed(Exception ex) {
       // end span before calling delegate
-      TRACER.endExceptionally(clientSpan, getResponse(context), ex);
+      tracer().endExceptionally(clientSpan, getResponse(context), ex);
 
       if (parentContext == null) {
         failDelegate(ex);
@@ -210,7 +194,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
     @Override
     public void cancelled() {
       // end span before calling delegate
-      TRACER.end(clientSpan, getResponse(context));
+      tracer().end(clientSpan, getResponse(context));
 
       if (parentContext == null) {
         cancelDelegate();

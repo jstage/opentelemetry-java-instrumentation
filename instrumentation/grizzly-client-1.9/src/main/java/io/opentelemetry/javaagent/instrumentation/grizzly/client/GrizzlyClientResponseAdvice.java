@@ -5,17 +5,17 @@
 
 package io.opentelemetry.javaagent.instrumentation.grizzly.client;
 
-import static io.opentelemetry.javaagent.instrumentation.grizzly.client.GrizzlyClientTracer.TRACER;
+import static io.opentelemetry.javaagent.instrumentation.grizzly.client.GrizzlyClientTracer.tracer;
 
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.Response;
+import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.javaagent.instrumentation.api.ContextStore;
 import io.opentelemetry.javaagent.instrumentation.api.InstrumentationContext;
 import io.opentelemetry.javaagent.instrumentation.api.Pair;
-import io.opentelemetry.trace.Span;
 import net.bytebuddy.asm.Advice;
 
 public class GrizzlyClientResponseAdvice {
@@ -33,7 +33,7 @@ public class GrizzlyClientResponseAdvice {
       contextStore.put(handler, null);
     }
     if (spanWithParent.hasRight()) {
-      TRACER.end(spanWithParent.getRight(), response);
+      tracer().end(spanWithParent.getRight(), response);
     }
     return spanWithParent.hasLeft() ? spanWithParent.getLeft().makeCurrent() : null;
   }

@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import static io.opentelemetry.trace.Span.Kind.CLIENT
-import static io.opentelemetry.trace.Span.Kind.INTERNAL
+import static io.opentelemetry.api.trace.Span.Kind.CLIENT
+import static io.opentelemetry.api.trace.Span.Kind.INTERNAL
 
+import io.opentelemetry.api.trace.attributes.SemanticAttributes
 import io.opentelemetry.instrumentation.test.AgentTestRunner
-import io.opentelemetry.trace.attributes.SemanticAttributes
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.Statement
@@ -85,7 +85,7 @@ class ProcedureCallTest extends AgentTestRunner {
           }
         }
         span(2) {
-          name "{call TEST_PROC()}"
+          name "test"
           kind CLIENT
           childOf span(1)
           attributes {
